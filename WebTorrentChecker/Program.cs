@@ -56,7 +56,6 @@ namespace WebTorrentChecker
                     newsTorrents.Add(torrent);
                     if (!lastTorrents.Contains(torrent))
                     {
-                        Console.WriteLine("Added new changed torrent: " + torrent);
                         changedTorrents.Add(torrent);
                     }
                 }
@@ -71,7 +70,7 @@ namespace WebTorrentChecker
         private static string FileTextFromSet(HashSet<string> data)
         {
             StringBuilder text = new StringBuilder();
-            text.AppendLine("#" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            text.AppendLine("#" + DateTime.Now.ToString("dd/MM/yyyy-HH:mm:ss"));
             foreach(string value in data)
             {
                 text.AppendLine(value);
