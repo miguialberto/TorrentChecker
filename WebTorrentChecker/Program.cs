@@ -15,7 +15,7 @@ namespace WebTorrentChecker
             // check args
             if (args.Length != 2)
             {
-                Console.WriteLine("Expected more arguments");
+                Console.WriteLine("Expected arguments");
                 Environment.Exit(0);
             }
 
@@ -26,10 +26,8 @@ namespace WebTorrentChecker
             string lastFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + lastFileName;
             string changedFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + changedFileName;
             HashSet<string> lastTorrents = new HashSet<string>();
-            StringBuilder newTorrents = new StringBuilder();
-            newTorrents.AppendLine("#" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
-            StringBuilder changedTorrents = new StringBuilder();
-            changedTorrents.AppendLine("#" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            HashSet<string> newsTorrents = new HashSet<string>();
+            HashSet<string> changedTorrents = new HashSet<string>();
 
             // load last torrents
             if (File.Exists(lastFilePath))
@@ -55,19 +53,30 @@ namespace WebTorrentChecker
                 if (att.Value.EndsWith("torrent"))
                 {
                     string torrent = att.Value;
-                    newTorrents.AppendLine(torrent);
+                    newsTorrents.Add(torrent);
                     if (!lastTorrents.Contains(torrent))
                     {
                         Console.WriteLine("Added new changed torrent: " + torrent);
-                        changedTorrents.AppendLine(torrent);
+                        changedTorrents.Add(torrent);
                     }
                 }
             }
 
             // write files
-            File.WriteAllText(lastFilePath, newTorrents.ToString());
-            File.WriteAllText(changedFilePath, changedTorrents.ToString());
+            File.WriteAllText(lastFilePath, FileTextFromSet(newsTorrents));
+            File.WriteAllText(changedFilePath, FileTextFromSet(changedTorrents));
             Environment.Exit(1);
+        }
+
+        private static string FileTextFromSet(HashSet<string> data)
+        {
+            StringBuilder text = new StringBuilder();
+            text.AppendLine("#" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            foreach(string value in data)
+            {
+                text.AppendLine(value);
+            }
+            return text.ToString();
         }
     }
 }
