@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,21 +12,25 @@ namespace WebTorrentChecker
 {
     class Program
     {
+
+        const string FILE_PROVIDERS = "providers.txt";
+        const string FILE_LAST = "last.txt";
+        const string FILE_NEWS = "news.txt";
+
         static void Main(string[] args)
         {
-            // check args
-            if (args.Length != 2)
+
+            // read list of providers
+            string providersPath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + FILE_PROVIDERS;
+            if (!File.Exists(providersPath))
             {
-                Console.WriteLine("Expected arguments");
+                Console.WriteLine("No providers file: " + providersPath);
                 Environment.Exit(0);
             }
+            HashSet<string> providers = LoadProviders(providersPath);
 
-            string webUrlPara = args[0];
-            string aliasPara = args[1];
-            string lastFileName = aliasPara + ".last";
-            string changedFileName = aliasPara + ".news";
-            string lastFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + lastFileName;
-            string changedFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + changedFileName;
+            string lastFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + FILE_LAST;
+            string changedFilePath = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + FILE_NEWS;
             HashSet<string> lastTorrents = new HashSet<string>();
             HashSet<string> newsTorrents = new HashSet<string>();
             HashSet<string> changedTorrents = new HashSet<string>();
@@ -35,7 +41,7 @@ namespace WebTorrentChecker
                 string[] lastFileLines = File.ReadAllLines(lastFilePath);
                 foreach(string lastFileLine in lastFileLines)
                 {
-                    if (!lastFileLine.StartsWith("#"))
+                    if (lastFileLine != null && lastFileLine.Length > 0 && !lastFileLine.StartsWith("#"))
                     {
                         lastTorrents.Add(lastFileLine);
                     }
@@ -44,19 +50,22 @@ namespace WebTorrentChecker
 
 
             // read torrents from web
-            HtmlWeb web = new HtmlWeb();
-            HtmlDocument doc = web.Load(webUrlPara);
-            List<string> hrefTags = new List<string>();
-            foreach (HtmlNode link in doc.DocumentNode.SelectNodes("//a[@href]"))
+            foreach(string provider in providers)
             {
-                HtmlAttribute att = link.Attributes["href"];
-                if (att.Value.EndsWith("torrent"))
+                HtmlWeb web = new HtmlWeb();
+                HtmlDocument doc = web.Load(provider);
+                List<string> hrefTags = new List<string>();
+                foreach (HtmlNode link in doc.DocumentNode.SelectNodes("//a[@href]"))
                 {
-                    string torrent = att.Value;
-                    newsTorrents.Add(torrent);
-                    if (!lastTorrents.Contains(torrent))
+                    HtmlAttribute att = link.Attributes["href"];
+                    if (att.Value.EndsWith("torrent"))
                     {
-                        changedTorrents.Add(torrent);
+                        string torrent = att.Value;
+                        newsTorrents.Add(torrent);
+                        if (!lastTorrents.Contains(torrent))
+                        {
+                            changedTorrents.Add(torrent);
+                        }
                     }
                 }
             }
@@ -64,6 +73,14 @@ namespace WebTorrentChecker
             // write files
             File.WriteAllText(lastFilePath, FileTextFromSet(newsTorrents));
             File.WriteAllText(changedFilePath, FileTextFromSet(changedTorrents));
+
+            // notify
+            if(changedTorrents.Count > 0)
+            {
+                Console.WriteLine("Notifiying by email");
+                NotifyEmailNews(changedTorrents);
+            }
+
             Environment.Exit(1);
         }
 
@@ -76,6 +93,34 @@ namespace WebTorrentChecker
                 text.AppendLine(value);
             }
             return text.ToString();
+        }
+
+        private static HashSet<string> LoadProviders(string providersPath)
+        {
+            HashSet<string> providers = new HashSet<string>();
+            string[] lines = File.ReadAllLines(providersPath);
+            foreach(string line in lines)
+            {
+                if (line != null && line.Length > 0 && !line.StartsWith("#"))
+                {
+                    providers.Add(line);
+                }
+            }
+            return providers;
+        }
+
+        private static void NotifyEmailNews(HashSet<string> news)
+        {
+            MailMessage objMail = new MailMessage(new MailAddress("miguialberto@hotmail.com", "Miguel"), new MailAddress("0bb1bb946b7cf2b13f33af9705ac651a2df904290924b896+0@nmamail.net", "WebTorrent"));
+            objMail.Subject = "Web Tracker";
+            objMail.Body = "[" + news.Count + "] new torrents found";
+            NetworkCredential objNC = new NetworkCredential("miguialberto@hotmail.com", "HOTMAILrsnky2");
+            SmtpClient objsmtp = new SmtpClient("smtp.live.com", 587);
+            objsmtp.EnableSsl = true;
+            objsmtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+            objsmtp.UseDefaultCredentials = false;
+            objsmtp.Credentials = objNC;
+            objsmtp.Send(objMail);
         }
     }
 }
