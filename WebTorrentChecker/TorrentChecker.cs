@@ -22,12 +22,12 @@ namespace WebTorrentChecker
 
         public void CheckNewTorrents()
         {
+            LoadProviders();
+            LoadNotifiers();
             HashSet<string> lastTorrents = ReadLastTorrents();
             HashSet<string> providedTorrents = ReadTorrentsFromProviders();
             HashSet<string> newTorrents = new HashSet<string>();
-            LoadProviders();
-            LoadNotifiers();
-
+           
             foreach(string torrent in providedTorrents)
             {
                 if (!lastTorrents.Contains(torrent))
@@ -36,13 +36,9 @@ namespace WebTorrentChecker
                 }
             }
 
-            // Update files
-            WriteTorrentsToFile(Configurator.getInstance().GetPropertyValue(Configurator.PATH_LASTS), providedTorrents);
-            WriteTorrentsToFile(Configurator.getInstance().GetPropertyValue(Configurator.PATH_NEWS), newTorrents);
-
             // Notify 
             NotificationResult result = new NotificationResult();
-            result.provideTorrents = providedTorrents;
+            result.providedTorrents = providedTorrents;
             result.newTorrents = newTorrents;
             foreach(INotifier notifier in notifiers)
             {
@@ -87,6 +83,10 @@ namespace WebTorrentChecker
 
             MailNotifier mnGmail = new MailNotifier(creadentialsGmail, clientGmail, fromGmail, toGmail);
             notifiers.Add(mnGmail);
+
+            FileNotifier fn = new FileNotifier(Configurator.getInstance().GetPropertyValue(Configurator.PATH_LASTS), 
+                Configurator.getInstance().GetPropertyValue(Configurator.PATH_NEWS));
+            notifiers.Add(fn);
         }
 
         private HashSet<string> ReadLastTorrents()
